@@ -161,33 +161,36 @@ bool CompileGLSL2SPV(const char *sources, size_t sources_length, ShaderType type
 
 	if (!shader.parse(&resources, defaultVersion, true, messages)) {
 		logger(shader.getInfoLog());
-		logger(shader.getInfoDebugLog());
 		logger("SPRIV shader parse failed!");
+        return false;
 	}
 
 	program.addShader(&shader);
 
 	if (!program.link(messages) || !program.mapIO()) {
 		logger("Error while linking shader program.");
+        return false;
 	}
 
 	glslang::SpvOptions spvOptions;
-#if defined(ACID_DEBUG)
-	spvOptions.generateDebugInfo = true;
-	spvOptions.disableOptimizer = true;
-	spvOptions.optimizeSize = false;
-#else
+#if defined(NDEBUG)
 	spvOptions.generateDebugInfo = false;
 	spvOptions.disableOptimizer = false;
 	spvOptions.optimizeSize = true;
+#else
+	spvOptions.generateDebugInfo = true;
+	spvOptions.disableOptimizer = true;
+	spvOptions.optimizeSize = false;
 #endif
 
 	spv::SpvBuildLogger log;
 	GlslangToSpv(*program.getIntermediate(static_cast<EShLanguage>(language)), out_binary, &log, &spvOptions);
     auto message = log.getAllMessages();
-    if(message.size())
+    if(message.size()){
         logger(message.c_str());
-    return !message.size() && out_binary.size();
+        return false;
+    }
+    return out_binary.size();
 }
 
 }//namespace glsl2spv
