@@ -9,8 +9,8 @@ namespace glsl2spv{
 enum class ShaderType{
     Vertex = 0,
     Geometry,
-    TesselationControl,
-    TesselationEvaluation,
+    TessellationControl,
+    TessellationEvaluation,
     Fragment,
     Compute
 };

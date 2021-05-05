@@ -152,7 +152,8 @@ bool CompileGLSL2SPV(const char *sources, size_t sources_length, ShaderType type
 
 	auto shaderNameCstr = s_LangNameTable[(size_t)type];
 	auto shaderSource = sources;
-	shader.setStringsWithLengthsAndNames(&shaderSource, nullptr, &shaderNameCstr, 1);
+    int length = sources_length;
+	shader.setStringsWithLengthsAndNames(&shaderSource, &length, &shaderNameCstr, 1);
 
 	auto defaultVersion = glslang::EShTargetVulkan_1_1;
 	shader.setEnvInput(glslang::EShSourceGlsl, language, glslang::EShClientVulkan, 110);
