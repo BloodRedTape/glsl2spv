@@ -140,7 +140,40 @@ void DefaultLogger(const char *message){
     printf("[glsl2spv]: %s\n", message);
 }
 
-bool CompileGLSL2SPV(const char *sources, size_t sources_length, ShaderType type, std::vector<std::uint32_t> &out_binary, LogProc logger){
+class GLSLIncluder : public glslang::TShader::Includer {
+private:
+    const glsl2spv::Includer &m_Include;
+public:
+    GLSLIncluder(const glsl2spv::Includer &include):
+        m_Include(include)
+    {}
+
+    IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)override{ 
+        return includeLocal(headerName, includerName, inclusionDepth); 
+    }
+
+    IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth)override{ 
+        std::string content = m_Include.Include(headerName);
+        if (!content.size())
+            return nullptr;
+
+        std::string *source = new std::string(std::move(content));
+
+        return new IncludeResult(headerName, source->data(), source->size(), source);
+    }
+
+        // Signals that the parser will no longer use the contents of the
+        // specified IncludeResult.
+    void releaseInclude(IncludeResult* result)override {
+        if (!result)
+            return;
+        auto* source = (std::string *)result->userData;
+        delete source;
+        delete result;
+    }
+};
+
+bool CompileGLSL2SPV(const char *sources, size_t sources_length, ShaderType type, std::vector<std::uint32_t> &out_binary, const Includer &include, LogProc logger){
 	// Starts converting GLSL to SPIR-V.
 	auto language = s_LangTable[(size_t)type];
 	glslang::TProgram program;
@@ -159,8 +192,10 @@ bool CompileGLSL2SPV(const char *sources, size_t sources_length, ShaderType type
 	shader.setEnvInput(glslang::EShSourceGlsl, language, glslang::EShClientVulkan, 110);
 	shader.setEnvClient(glslang::EShClientVulkan, defaultVersion);
 	shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+    
+    GLSLIncluder includer(include);
 
-	if (!shader.parse(&resources, defaultVersion, true, messages)) {
+	if (!shader.parse(&resources, defaultVersion, true, messages, includer)) {
 		logger(shader.getInfoLog());
 		logger("SPRIV shader parse failed!");
         return false;
